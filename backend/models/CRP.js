@@ -9,6 +9,15 @@ const CRPSchema = new mongoose.Schema({
   summaryOfFarmerIssues: { type: String, required: true },
   interventionsGiven: [{ type: String }],
   notesForExpert: { type: String },
+  trainingsConducted: {
+    type: [{
+      trainingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Training' },
+      date: { type: Date, required: true },
+      subject: { type: String, required: true },
+      attendees: { type: Number, required: true }
+    }],
+    default: []
+  },
   
   email: { 
     type: String, 

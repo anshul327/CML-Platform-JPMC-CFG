@@ -512,3 +512,199 @@ export const getFarmersByCrop = async (req, res) => {
     });
   }
 }; 
+
+// Add a new training instance and (optionally) link to a CRP
+export const addTraining = async (req, res, next) => {
+    try {
+        const { subject, attendees, date, crpId } = req.body;
+
+        // Create new training document
+        const training = new Training({
+            subject,
+            attendees
+        });
+        const savedTraining = await training.save();
+
+        // Optionally link to CRP if crpId and date are provided
+        let updatedCRP = null;
+        if (crpId && date) {
+            updatedCRP = await CRP.findOneAndUpdate(
+                { crpId },
+                {
+                    $push: {
+                        trainingsConducted: {
+                            trainingId: savedTraining._id,
+                            date,
+                            subject,
+                            attendees
+                        }
+                    }
+                },
+                { new: true }
+            );
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Training added successfully',
+            training: savedTraining,
+            crp: updatedCRP
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Edit a training instance and update CRP reference
+export const editTraining = async (req, res, next) => {
+    try {
+        const { trainingId } = req.params;
+        const { subject, attendees, date, crpId } = req.body;
+
+        // Update training document
+        const updatedTraining = await Training.findByIdAndUpdate(
+            trainingId,
+            { subject, attendees },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedTraining) {
+            return res.status(404).json({
+                success: false,
+                message: 'Training not found'
+            });
+        }
+
+        // Update CRP's trainingsConducted array if crpId and date are provided
+        let updatedCRP = null;
+        if (crpId && date) {
+            updatedCRP = await CRP.findOneAndUpdate(
+                { crpId, "trainingsConducted.trainingId": trainingId },
+                {
+                    $set: {
+                        "trainingsConducted.$.subject": subject,
+                        "trainingsConducted.$.attendees": attendees,
+                        "trainingsConducted.$.date": date
+                    }
+                },
+                { new: true }
+            );
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Training updated successfully',
+            training: updatedTraining,
+            crp: updatedCRP
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Delete a training instance and remove from CRP reference
+export const deleteTraining = async (req, res, next) => {
+    try {
+        const { trainingId } = req.params;
+        const { crpId } = req.body;
+
+        // Delete training document
+        const deletedTraining = await Training.findByIdAndDelete(trainingId);
+
+        if (!deletedTraining) {
+            return res.status(404).json({
+                success: false,
+                message: 'Training not found'
+            });
+        }
+
+        // Remove training from CRP's trainingsConducted array if crpId is provided
+        let updatedCRP = null;
+        if (crpId) {
+            updatedCRP = await CRP.findOneAndUpdate(
+                { crpId },
+                { $pull: { trainingsConducted: { trainingId } } },
+                { new: true }
+            );
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Training deleted successfully',
+            training: deletedTraining,
+            crp: updatedCRP
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Add a new problem instance
+export const addProblem = async (req, res, next) => {
+    try {
+        const { issue, description, solved, farmerId, image, video } = req.body;
+        const problem = new Problem({
+            issue,
+            description,
+            solved,
+            farmerId,
+            image,
+            video
+        });
+        const savedProblem = await problem.save();
+        res.status(201).json({
+            success: true,
+            message: 'Problem added successfully',
+            problem: savedProblem
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Edit a problem instance
+export const editProblem = async (req, res, next) => {
+    try {
+        const { problemId } = req.params;
+        const { issue, description, solved, farmerId, image, video } = req.body;
+        const updatedProblem = await Problem.findByIdAndUpdate(
+            problemId,
+            { issue, description, solved, farmerId, image, video },
+            { new: true, runValidators: true }
+        );
+        if (!updatedProblem) {
+            return res.status(404).json({
+                success: false,
+                message: 'Problem not found'
+            });
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Problem updated successfully',
+            problem: updatedProblem
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Delete a problem instance
+export const deleteProblem = async (req, res, next) => {
+    try {
+        const { problemId } = req.params;
+        const deletedProblem = await Problem.findByIdAndDelete(problemId);
+        if (!deletedProblem) {
+            return res.status(404).json({
+                success: false,
+                message: 'Problem not found'
+            });
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Problem deleted successfully',
+            problem: deletedProblem
+        });
+    } catch (error) {
+        next(error);
+    }
+};
